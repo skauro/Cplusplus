@@ -14,7 +14,8 @@ public:
     Data(const Data& other);
     Data& operator=(const Data& other);
     bool operator==(const Data& other) const;
-    // Public methods as per the requirements
+    bool operator<(const Data& other) const;
+
     void PrintAll();
     int CountItems();
     std::map<int, std::vector<Item>*>* GetGroup(char c);

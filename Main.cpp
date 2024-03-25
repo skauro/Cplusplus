@@ -174,9 +174,12 @@ V:
 	pData->PrintGroup('Q');
 	cout << endl;
 	
-	tuple<string, optional<variant<Date, Time>>> t1("Sinikael", Date(16, 9, 2021)), t2("Sinitihane", Time(16, 25, 21));
+	tuple<string, optional<variant<Date, Time>>> t1("Sinikael", Date(16, 9, 2021));
+	tuple<string, optional<variant<Date, Time>>> t2("Sinitihane", Time(16, 25, 21));
 	tuple<string, optional<variant<Date, Time>>> t3("Luik", nullopt);
-	tuple<string, optional<variant<Date, Time>>> t4("Nepp", Date()), t5("Lagle", Time()), t6("Metsis", nullopt);
+	tuple<string, optional<variant<Date, Time>>> t4("Nepp", Date());
+	tuple<string, optional<variant<Date, Time>>> t5("Lagle", Time());
+	tuple<string, optional<variant<Date, Time>>> t6("Metsis", nullopt);
 	cout << (pData->InsertGroup('M', { 10, 20, 30 },
 		{
 			{ t1, t2 },

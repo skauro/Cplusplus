@@ -26,16 +26,15 @@ void Item::ShowAll() const {
 	std::cout << "Group: " << Group << std::endl
 		<< "Subgroup: " << Subgroup << std::endl
 		<< "Name: " << Name << std::endl;
-
-	std::visit([&](auto&& arg) {
-		// Check the type of arg and call the appropriate ToString function
-		if constexpr (std::is_same_v<decltype(arg), Date>) {
-			std::cout << "Timestamp: " << arg.ToString() << std::endl;
-		}
-		else if constexpr (std::is_same_v<decltype(arg), Time>) {
-			std::cout << "Timestamp: " << arg.ToString() << std::endl;
-		}
-		}, Timestamp);
+	if (Timestamp.index() == 0)
+	{
+		cout << get<0>(Timestamp) << endl;
+	}
+	else
+	{
+		cout << get<1>(Timestamp) << endl;
+	}
+	cout << "" << endl;
 }
 
 
@@ -45,11 +44,8 @@ Item::Item(char group, int subgroup, string name, Date timestamp) :
 }
 
 // Constructor with Time
-Item::Item(char group, int subgroup, string name, Time timestamp){
-	Group = group;
-	Subgroup = subgroup;
-	Name = name;
-	Timestamp = timestamp;
+Item::Item(char group, int subgroup, string name, Time timestamp) :
+	Group(group), Subgroup(subgroup), Name(name), Timestamp(timestamp) {
 }
 
 // Constructor with variant<Date, Time>
@@ -64,6 +60,6 @@ Item::Item(const Item& other)
 
 // Destructor
 Item::~Item() {
-
+	
 }
 

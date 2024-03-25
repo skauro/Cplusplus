@@ -21,8 +21,12 @@
 #include "string.h"
 #include <iostream>
 
-//#include <stdexcept>
+#include <stdexcept>
 
+#include "string"
+#include <map>
+#include <list>
+#include <initializer_list>
 
 using namespace std;
 

@@ -1,5 +1,12 @@
 #include "Main.h"
+#include <tuple>
+#include <string>
+#include <optional>
+#include <variant>
+#include <map>
+#include <utility>
 
+using namespace std;
 
 Data::Data(const Data& other) {
     // Clear existing content
@@ -48,10 +55,7 @@ int Data::CountGroupItems(char c) {
 
         return groupItemCount;
     }
-    else {
-        // Group not found
-        return 0;
-    }
+     return 0;
 }
 
 std::vector<Item>* Data::GetSubgroup(char c, int i) {
@@ -62,9 +66,7 @@ std::vector<Item>* Data::GetSubgroup(char c, int i) {
         auto innerIt = innerMap.find(i);
 
         if (innerIt != innerMap.end()) {
-            std::vector<Item>* subgroupCopy = new std::vector<Item>(*(innerIt->second)); 
-            return subgroupCopy;
-            //return innerIt->second;
+            return innerIt->second;
         }
     }
     return nullptr;  // Group or subgroup not found
@@ -80,7 +82,7 @@ void Data::PrintSubgroup(char c, int i)
         }
     }
     else {
-        std::cout << "Group or subgroup not found." << std::endl;
+        std::cout << "Group or subgroup not found.\n" << std::endl; 
     }
 }
 
@@ -121,25 +123,32 @@ void Data::PrintItem(char c, int i, std::string s) {
     auto item = GetItem(c, i, s);
 
     if (item) {
-        item.value().ShowAll();  // Assuming you have a function to display item information
+        item.value().ShowAll(); 
     }
     else {
-        std::cout << "Item not found." << std::endl;
+        std::cout << "Item not found.\n" << std::endl;
     }
 }
 
-optional<Item> Data::InsertItem(char c, int i, string s, optional<variant<Date, Time>> v) {
-    // Check if the name is not an empty string
+optional<Item> Data::InsertItem(char c, int i, string s, optional<variant<Date, Time>> v) {  
+    
     if (s.empty()) {
         return nullopt;
     }
-
+    if (!isalpha(c))
+    {
+        return nullopt;
+    }
+    if (GetItem(c, i, s) != nullopt)
+    {
+        return nullopt;
+    }
+    
     auto outerIt = DataStructure.find(c);
 
     if (outerIt == DataStructure.end()) {
         // Create the missing group
         DataStructure.emplace(c, std::map<int, std::vector<Item>*>());
-        DataStructure[c].emplace(i, new std::vector<Item>());
 
     }
 
@@ -148,45 +157,63 @@ optional<Item> Data::InsertItem(char c, int i, string s, optional<variant<Date, 
     // Check if the subgroup does not exist
     auto innerIt = innerMap.find(i);
     if (innerIt == innerMap.end()) {
-        // Subgroup does not exist, return nullopt or take appropriate action
-        return nullopt;
+        // Subgroup does not exist
+        innerMap.emplace(i, new std::vector<Item>());
     }
-
-
+    Item *newItem = new Item(c, i, s, Date::CreateRandomDate(Date(1, 1, 2000), Date(31, 12, 2022)));
+    if (v.has_value())
+    {
+        const auto& variantValue = v.value();
+        if (std::holds_alternative<Date>(variantValue))
+        {
+            const Date& dateValue = std::get<Date>(variantValue);
+            delete newItem;
+            newItem = new Item(c, i, s, dateValue);  
+        }
+        else if (std::holds_alternative<Time>(variantValue))
+        {
+            const Time& timeValue = std::get<Time>(variantValue);
+            delete newItem;
+            newItem = new Item(c, i, s, timeValue);
+        }
+    }
     // Use Date::CreateRandomDate() if Timestamp is not specified
-    Date randomDate = Date::CreateRandomDate(Date(1, 1, 2000), Date(31, 12, 2022));
-    Item newItem(c, i, s, v.value_or(randomDate));  // Use the provided variant or default to random Date
-
+    
     // Insert the new item into the subgroup
-    innerMap[i]->push_back(newItem);
+    innerMap[i]->push_back(*newItem);
 
     // Return the inserted item wrapped in std::optional
-    return optional<Item>(newItem);
+    return (*newItem);
 }
 
 vector<Item>* Data::InsertSubgroup(char c, int i, initializer_list<tuple<string, optional<variant<Date, Time>>>> items) {
 
+    if (!isalpha(c))
+    {
+        return nullptr;
+    }
+    
     auto outerIt = DataStructure.find(c);
 
     if (outerIt == DataStructure.end()) {
-        // Create the missing group
-        DataStructure.emplace(c, map<int, unique_ptr<vector<Item>>>{});
+        // Group does not exist  
+        DataStructure.emplace(c, map<int, vector<Item>*>());
     }
+    // Create the missing group
 
     auto& innerMap = DataStructure.at(c);
-    innerMap.emplace(i, make_unique<vector<Item>>());
     // Check if the subgroup already exists
     auto innerIt = innerMap.find(i);
     if (innerIt != innerMap.end()) {
         // Subgroup already exists, return nullptr
         return nullptr;
     }
-
-    // Create a new subgroup with the provided items
-    auto newSubgroup = make_unique<vector<Item>>();
+    innerMap.emplace(i, new std::vector<Item>());                 //siin tegin midagi
+        // Create a new subgroup with the provided items
+    auto& newSubgroup = innerMap[i];
     for (const auto& item : items) {
-        string itemName = get<0>(item);
-        optional<variant<Date, Time>> timestamp = get<1>(item);
+        std::string itemName = std::get<0>(item);
+        std::optional<std::variant<Date, Time>> timestamp = std::get<1>(item);
 
         // Check if the name is not an empty string
         if (itemName.empty()) {
@@ -194,20 +221,23 @@ vector<Item>* Data::InsertSubgroup(char c, int i, initializer_list<tuple<string,
         }
 
         Date randomDate = Date::CreateRandomDate(Date(1, 1, 2000), Date(31, 12, 2022));
-        Item newItem(c, i, itemName, timestamp.value_or(randomDate));
-        newSubgroup->push_back(newItem);
+        Item *newItem = new Item(c, i, itemName, timestamp.value_or(randomDate));
+        newSubgroup->push_back(*newItem);
     }
-
-    // Insert the new subgroup into the inner map using std::move
-    innerMap.emplace(i, std::move(newSubgroup));
 
     // Return the raw pointer to the inserted subgroup
     return innerMap[i];
 
 }
+
 std::map<int, std::vector<Item>*>* Data::InsertGroup(char c, std::initializer_list<int> subgroups,
     std::initializer_list<std::initializer_list<std::tuple<std::string, std::optional<std::variant<Date, Time>>>>> items)
 {
+    if (!isalpha(c))
+    {
+        return nullptr;
+
+    }
     auto outerIt = DataStructure.find(c);
 
     if (outerIt != DataStructure.end()) {
@@ -216,7 +246,7 @@ std::map<int, std::vector<Item>*>* Data::InsertGroup(char c, std::initializer_li
     }
 
     // Create a new group
-    DataStructure.emplace(c, map<int, unique_ptr<vector<Item>>>());
+    DataStructure.emplace(c, map<int, vector<Item>*>());
 
     auto& innerMap = DataStructure[c];
 
@@ -229,32 +259,37 @@ std::map<int, std::vector<Item>*>* Data::InsertGroup(char c, std::initializer_li
         auto& subgroup = innerMap[subgroupKey];
 
         // Check if the subgroup already exists
-        if (subgroup) {
-            return nullptr;
+        if (!subgroup) {
+            // Subgroup does not exist, create a new one
+            subgroup = new std::vector<Item>();
         }
-
-        // Create a new subgroup with the provided items
-        auto newSubgroup = make_unique<vector<Item>>();
 
         for (const auto& item : *itemIt) {
 
-
             string itemName = get<0>(item);
-            optional<variant<Date, Time>> timestamp = get<1>(item);
-
-            // Check if the name is not an empty string
             if (itemName.empty()) {
+                cout << "Name can't be empty" << endl;
                 return nullptr;
             }
-
-            Date randomDate = Date::CreateRandomDate(Date(1, 1, 2000), Date(31, 12, 2022));
-            Item newItem(c, subgroupKey, itemName, timestamp.value_or(randomDate));
-            subgroup->push_back(newItem);
+            optional<variant<Date, Time>> timestamp = get<1>(item);
+            
+            Item* newItem;
+            if (timestamp.has_value())
+            {
+                variant<Date, Time> date = timestamp.value();
+                newItem = new Item(c, subgroupKey, itemName, date);
+            }
+            else
+            {
+                Date randomDate = Date::CreateRandomDate(Date(1, 1, 2000), Date(31, 12, 2022));
+                newItem =  new Item(c, subgroupKey, itemName, randomDate);
+            }
+            subgroup->push_back(*newItem);
         }
 
         // Move to the next subgroup and items
-        ++subgroupIt;
-        ++itemIt;
+        subgroupIt++;               //enne oli pluss ees
+        itemIt++;
     }
 
     // Return the raw pointer to the inserted group
@@ -333,22 +368,18 @@ bool Data::RemoveGroup(char c)
 
 Data::Data(int n)
 {
-    for (int i = 0; i < n; ++i) {
-
-        Item key; //itemist constructor
-
-        // Get the char value from the Item instance
-        char keyChar = key.GetGroup();  
-
-        // Create an empty inner map for the current item key
-        std::map<int, std::vector<Item>*> innerMap;
-
-        // Insert the inner map into the DataStructure map
-        DataStructure[keyChar] = innerMap;
-  
+    for (int i = 0; i < n; i++) {
+        
+        Item* item = new Item();
+        char groupKey = item->GetGroup();
+        int subKey = item->GetSub();
+        string name = item->GetName();
+        variant<Date, Time> date = item->Getdate();
+        InsertItem(groupKey, subKey, name, date);
     }
     // Constructs the object and fills the container with n empty vectors.
 }
+
 Data::Data() { }// Constructs the object with an empty container;
 
 Data& Data::operator=(const Data& other) {
@@ -389,34 +420,13 @@ Data::~Data() {
 
 
 void Data::PrintAll() {
-    // Flatten the items into a single vector for sorting
-    std::vector<Item> flattenedItems;
 
     for (const auto& outerPair : DataStructure) {
         for (const auto& innerPair : outerPair.second) {
             for (const auto& item : *(innerPair.second)) {
-                flattenedItems.push_back(item);
+                item.ShowAll();
             }
         }
-    }
-
-    // Sort the flattenedItems vector based on group, subgroup, and item names
-    std::sort(flattenedItems.begin(), flattenedItems.end(),
-        [](const Item& a, const Item& b) {
-            if (a.GetGroup() != b.GetGroup()) {
-                return a.GetGroup() < b.GetGroup();
-            }
-            if (a.GetSub() != b.GetSub()) {
-                return a.GetSub() < b.GetSub();
-            }
-            return a.GetName() < b.GetName();
-        });
-
-    // Print the sorted items in an easily readable format
-    for (const auto& item : flattenedItems) {
-        std::cout << item.GetGroup() << ":" << item.GetSub() << ": ";
-        item.ShowAll();
-        std::cout << std::endl;
     }
 }
 
@@ -430,29 +440,59 @@ std::map<int, std::vector<Item>*>* Data::GetGroup(char c) {
 
 
 void Data::PrintGroup(char c) {
-    std::map<int, std::vector<Item>*>* group = GetGroup(c);
+    if (isalpha(c))
+    {
+        std::map<int, std::vector<Item>*>* group = GetGroup(c);
 
-    if (group) {
-        std::cout << "Items in Group " << c << ":" << std::endl;
+        if (group) {
+            std::cout << "Items in Group " << c << ":" << std::endl;
 
-        // Flatten the items into a single vector for sorting
-        std::vector<Item> flattenedItems;
-        for (const auto& innerPair : *group) {
-            for (const auto& item : *(innerPair.second)) {
-                flattenedItems.push_back(item);
+            for (const auto& innerPair : *group) {
+                for (const auto& item : *(innerPair.second)) {
+                    item.ShowAll();
+                }
             }
         }
-
-        // Sort the flattenedItems vector based on the item names
-        std::sort(flattenedItems.begin(), flattenedItems.end(),
-            [](const Item& a, const Item& b) { return a.GetName() < b.GetName(); });
-
-        // Print the sorted items
-        for (const auto& item : flattenedItems) {
-            item.ShowAll();
+        else
+        {
+            cout << "No items in group" << endl;
         }
     }
-    else {
-        throw std::invalid_argument("Group not found.");
+    else
+    {
+        cout << "Invalid group name" << endl;
     }
 }
+
+bool Data::operator<(const Data& other) const {
+    // Iterate through the DataStructure map
+    for (const auto& [groupKey, groupValue] : DataStructure) {
+        // Check if the other object contains the current group
+        auto it = other.DataStructure.find(groupKey);
+        if (it == other.DataStructure.end()) {
+            // Group not found in the other object, so this object is less
+            return true;
+        }
+        // Compare subgroup keys within the group
+        for (const auto& [subKey, subgroup] : groupValue) {
+            auto otherIt = it->second.find(subKey);
+            if (otherIt == it->second.end()) {
+                // Subgroup not found in the other object, so this object is less
+                return true;
+            }
+            
+        }
+        // Check if one group has fewer subgroups than the other
+        if (groupValue.size() < it->second.size()) {
+            // This object has fewer subgroups, so it's considered less
+            return true;
+        }
+        else if (it->second.size() < groupValue.size()) {
+            // Other object has fewer subgroups, so this object is considered greater
+            return false;
+        }
+    }
+    // All groups, subgroups, and items are equal, so this object is not less than the other
+    return false;
+}
+
