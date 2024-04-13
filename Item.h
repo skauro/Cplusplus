@@ -1,5 +1,6 @@
 #pragma once
 #include <variant>
+#include <string>
 class Item
 {
 private:
